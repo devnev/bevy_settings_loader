@@ -1,0 +1,18 @@
+[package]
+name = "bevy_settings_loader"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { version = "0.12.1", default-features = false, features = [
+    "bevy_asset",
+] }
+serde = "1.0.196"
+serde_json = { version = "1.0.112", optional = true }
+thiserror = "1.0.56"
+toml_edit = { version = "0.21.0", optional = true, features = ["serde"] }
+
+[features]
+default = ["toml", "json"]
+toml = ["toml_edit"]
+json = ["serde_json"]
