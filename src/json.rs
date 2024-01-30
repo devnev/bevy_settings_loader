@@ -1,4 +1,3 @@
-
 use std::ops::Deref;
 use std::str::from_utf8;
 
@@ -10,7 +9,6 @@ use thiserror::Error;
 
 use crate::asset::IntoPathDeserializer;
 
-
 pub struct JsonAssetPlugin;
 
 impl Plugin for JsonAssetPlugin {
@@ -20,7 +18,7 @@ impl Plugin for JsonAssetPlugin {
     }
 }
 
-#[derive(Asset, Debug, Clone, TypePath)]
+#[derive(Asset, Debug, Default, Clone, TypePath)]
 pub struct JsonAsset {
     document: serde_json::Value,
 }
