@@ -1,13 +1,15 @@
-use std::any::TypeId;
+
 use std::ops::Deref;
 use std::str::from_utf8;
 
-use bevy::asset::{AssetLoader, AsyncReadExt, LoadedUntypedAsset};
+use bevy::asset::{AssetLoader, AsyncReadExt};
 use bevy::prelude::*;
-use serde::Deserialize;
+use serde::de::IntoDeserializer;
+
 use thiserror::Error;
 
-use crate::plugin::SettingsPluginSettings;
+use crate::asset::IntoPathDeserializer;
+
 
 pub struct JsonAssetPlugin;
 
@@ -33,6 +35,20 @@ impl Deref for JsonAsset {
     type Target = serde_json::Value;
     fn deref(&self) -> &Self::Target {
         &self.document
+    }
+}
+
+impl<'de> IntoDeserializer<'de, serde_json::Error> for JsonAsset {
+    type Deserializer = serde_json::Value;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        self.document.into_deserializer()
+    }
+}
+
+impl<'de> IntoPathDeserializer<'de, serde_json::Error> for JsonAsset {
+    fn into_deserializer_at(self, path: &str) -> Option<Self::Deserializer> {
+        self.pointer(path).cloned()
     }
 }
 
@@ -74,55 +90,5 @@ impl AssetLoader for JsonAssetLoader {
             let doc: serde_json::Value = serde_json::from_str(string)?;
             Ok(doc.into())
         })
-    }
-}
-
-pub(crate) fn watch_json_settings<'de, S: Resource + Deserialize<'de>>(
-    mut commands: Commands,
-    mut events: EventReader<AssetEvent<LoadedUntypedAsset>>,
-    untyped_assets: Res<Assets<LoadedUntypedAsset>>,
-    json_assets: Res<Assets<JsonAsset>>,
-    load_settings: Res<SettingsPluginSettings<S>>,
-    setting: Option<ResMut<S>>,
-) {
-    let mut new_setting: Option<S> = default();
-    for event in events.read() {
-        let id = *match event {
-            AssetEvent::Added { id } => id,
-            AssetEvent::Modified { id } => id,
-            AssetEvent::LoadedWithDependencies { id } => id,
-            _ => continue,
-        };
-        if id != load_settings.doc.id() {
-            continue;
-        };
-        let Some(LoadedUntypedAsset { handle }) = untyped_assets.get(id) else {
-            continue;
-        };
-        if handle.type_id() != TypeId::of::<JsonAsset>() {
-            continue;
-        }
-        let asset = json_assets
-            .get(handle.clone().typed::<JsonAsset>())
-            .unwrap();
-        let mut doc = asset.deref();
-        if let Some(path) = &load_settings.label {
-            match doc.pointer(path) {
-                Some(val) => doc = val,
-                None => continue,
-            };
-        };
-        new_setting = S::deserialize(doc.clone()).ok();
-    }
-
-    if let Some(s) = new_setting {
-        match setting {
-            Some(mut v) => {
-                *v = s;
-            }
-            None => {
-                commands.insert_resource(s);
-            }
-        }
     }
 }

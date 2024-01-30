@@ -3,8 +3,9 @@ use bevy::prelude::*;
 use serde::Deserialize;
 use std::marker::PhantomData;
 
-use crate::json::JsonAssetPlugin;
-use crate::toml::TomlAssetPlugin;
+use crate::asset::watch_settings_asset;
+use crate::json::{JsonAsset, JsonAssetPlugin};
+use crate::toml::{TomlAsset, TomlAssetPlugin};
 
 #[derive(Debug)]
 pub struct SettingsPlugin<S> {
@@ -19,16 +20,6 @@ impl<S> SettingsPlugin<S> {
             _marker: default(),
         }
     }
-}
-
-#[derive(Resource, Debug, Reflect)]
-#[reflect(from_reflect = false)]
-pub(crate) struct SettingsPluginSettings<S> {
-    pub path: String,
-    pub label: Option<String>,
-    pub doc: Handle<LoadedUntypedAsset>,
-    #[reflect(ignore)]
-    _marker: PhantomData<S>,
 }
 
 impl<'de, S: Resource + Deserialize<'de>> Plugin for SettingsPlugin<S> {
@@ -47,8 +38,7 @@ impl<'de, S: Resource + Deserialize<'de>> Plugin for SettingsPlugin<S> {
             if !app.is_plugin_added::<TomlAssetPlugin>() {
                 app.add_plugins(TomlAssetPlugin);
             };
-            use crate::toml::watch_toml_settings;
-            app.add_systems(Update, watch_toml_settings::<S>);
+            app.add_systems(Update, watch_settings_asset::<S, TomlAsset, _>);
         }
 
         #[cfg(feature = "json")]
@@ -56,10 +46,19 @@ impl<'de, S: Resource + Deserialize<'de>> Plugin for SettingsPlugin<S> {
             if !app.is_plugin_added::<JsonAssetPlugin>() {
                 app.add_plugins(JsonAssetPlugin);
             };
-            use crate::json::watch_json_settings;
-            app.add_systems(Update, watch_json_settings::<S>);
+            app.add_systems(Update, watch_settings_asset::<S, JsonAsset, _>);
         }
     }
+}
+
+#[derive(Resource, Debug, Reflect)]
+#[reflect(from_reflect = false)]
+pub(crate) struct SettingsPluginSettings<S> {
+    pub path: String,
+    pub label: Option<String>,
+    pub doc: Handle<LoadedUntypedAsset>,
+    #[reflect(ignore)]
+    _marker: PhantomData<S>,
 }
 
 fn load_settings<'de, S: Resource + Deserialize<'de>>(
