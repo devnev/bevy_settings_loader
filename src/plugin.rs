@@ -14,13 +14,13 @@ use crate::IntoPathDeserializer;
 
 #[derive(Debug)]
 pub struct SettingsPlugin<S> {
-    path: String,
+    path: AssetPath<'static>,
     watch_systems: Mutex<Vec<BoxedSystem>>,
     _marker: PhantomData<S>,
 }
 
 impl<'de, S: Resource + Deserialize<'de>> SettingsPlugin<S> {
-    pub fn load(path: impl Into<String>) -> Self {
+    pub fn load(path: impl Into<AssetPath<'static>>) -> Self {
         Self {
             path: path.into(),
             watch_systems: default(),
@@ -46,10 +46,9 @@ impl<'de, S: Resource + Deserialize<'de>> SettingsPlugin<S> {
 
 impl<'de, S: Resource + Deserialize<'de>> Plugin for SettingsPlugin<S> {
     fn build(&self, app: &mut App) {
-        let parsed = AssetPath::parse(&self.path);
         app.insert_resource(SettingsPluginSettings::<S> {
-            path: parsed.without_label().to_string(),
-            label: parsed.label().map(|l| l.to_string()),
+            path: self.path.without_label().to_string(),
+            label: self.path.label().map(|l| l.to_string()),
             doc: default(),
             _marker: default(),
         })
